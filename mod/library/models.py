@@ -31,12 +31,18 @@ class Author(models.Model):
     name = models.CharField(max_length=100)
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE)
 
+    def get_name(self):
+        authors = Author.objects.all()
+        return [i.name for i in authors]
+    
+    
     def random_data(self):
         authors = []
+        profiles = list(Profile.objects.all())
         for i in range(50000):
             slug = 'a' + str(i)
             name = 'author' + str(i)
-            profile = Profile.objects.get(username='user'+ str(i))
+            profile = profiles[i]
             author = Author(slug=slug, name=name, profile=profile)
             authors.append(author)
             print(i)
@@ -81,11 +87,13 @@ class Book(models.Model):
 
     def random_data(self):
         books = []
+        authors = list(Author.objects.all())
+        publishers = list(Publisher.objects.all())
         for i in range(50000):
             slug = 'B' + str(i)
-            author = Author.objects.get(name='author' + str(i))
+            author = authors[i]
             title = 'Book'+ str(i)
-            publisher = Publisher.objects.get(name='publisher' + str(i))
+            publisher = publishers[i]
             year = random.choice(range(1600,2025))
             month = random.choice(range(1,13))
             day = random.choice(range(1, 28))
@@ -107,21 +115,21 @@ class Collection(models.Model):
 
     def random_data(self):
         collections = []
-        for i in range(50000):
+        bk = list(Book.objects.all())
+        for i in range(10):
             slug = 'C' + str(i)
             name = 'Collection'+str(i)
-            bk = Book.objects.all()
+            
             collection = Collection(slug = slug, name = name)
             collection.save()
             for j in range(random.choice(range(1,10))):
                 books = random.choice(bk) 
                 collection.books.add(books)
-            collection.save()
             print('Collection',i)
         print('Done')
 
     def __str__(self):
-        return self.name
+        return self.books
     
 def create_random_data():
     profile = Profile()
