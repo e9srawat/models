@@ -6,9 +6,13 @@ from django.db.models import Q
 class Profile(models.Model):
     slug = models.SlugField(unique=True)
     username = models.CharField(max_length=100, unique=True)
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15)
+    email = models.EmailField(primary_key=True,unique=True)
+    phone = models.CharField(max_length=15,unique=True)
     address = models.TextField()
+
+    class Meta:
+        verbose_name = 'Profile'
+        verbose_name_plural = 'Profiles'
         
     def get_author_name_profile(self):
         profiles = Profile.objects.all()
@@ -49,6 +53,10 @@ class Author(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=100)
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='a_profile')
+
+    class Meta:
+        verbose_name = 'Author'
+        verbose_name_plural = 'Authors'
 
 
     def num_books(self):
@@ -95,10 +103,14 @@ class Author(models.Model):
 
 class Publisher(models.Model):
     slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     website = models.URLField()
     email = models.EmailField()
     address = models.TextField()
+
+    class Meta:
+        verbose_name = 'Publisher'
+        verbose_name_plural = 'Publishers'
 
     def random_data(self):
         publishers = []
@@ -124,8 +136,16 @@ class Book(models.Model):
     publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name='book_publisher')
     date_of_pub = models.DateField()
     is_deleted = models.BooleanField(default = False)
-    
-    #Return the list of books published by given publishers (input will be list of publisher names).
+    genres = [('horror', 'Horror'), ('self help', 'Self Help'), ('adventure', 'Adventure'), ('others','Others')]
+    genre = models.CharField(max_length=100,  choices=genres, default='Horror')
+
+
+    class Meta:
+        unique_together = ('author', 'title', 'date_of_pub')  
+        ordering = ['date_of_pub']
+        verbose_name = 'Book'
+        verbose_name_plural = 'Books'
+
     def get_book_by_publishers(self, pubs):
         lst = []
         for i in pubs:
@@ -159,6 +179,9 @@ class Book(models.Model):
         books = Book.objects.filter(query)
         return list(books)
     
+    def get_book_by_year(self,year):
+        return Book.objects.filter(date_of_pub__year=year)
+
     def get_book_exclude(self, a):
         query = ~Q(author=a)
         books = Book.objects.filter(query)
@@ -199,7 +222,15 @@ class Book(models.Model):
         pub = Publisher.objects.get(website=web)
         books = pub.book_publisher.all()
         return [i.title for i in books]
-            
+    
+    def create_book(self, slug, author, title, publisher, date_of_pub):
+        kitab = Book.objects.filter(slug=slug, author=author, title=title, publisher=publisher, date_of_pub=date_of_pub)
+        if kitab.exists():
+            return "Object already exists"
+        Book.objects.create(slug=slug, author=author, title=title, publisher=publisher, date_of_pub=date_of_pub)
+        return "Object Created"
+
+
     def random_data(self):
         books = []
         authors = list(Author.objects.all())
@@ -223,24 +254,29 @@ class Book(models.Model):
         return self.title
 
 
-class Collection(models.Model):
+class book_collection(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     books = models.ManyToManyField(Book)
+
+    class Meta:
+        verbose_name = 'Collection'
+        verbose_name_plural = 'Collections'
 
     def random_data(self):
         collections = []
         bk = list(Book.objects.all())
         for i in range(10):
+            print('Collection',i)
             slug = 'C' + str(i)
             name = 'Collection'+str(i)
-            
-            collection = Collection(slug = slug, name = name)
+            collection = book_collection(slug = slug, name = name)
             collection.save()
             for j in range(random.choice(range(1,10))):
                 books = random.choice(bk) 
-                collection.books.add(books)
-            print('Collection',i)
+                collection.books.set(books)
+            collections.append(collection)
+        book_collection.objects.bulk_create(collections)
         print('Done')
 
     def __str__(self):
@@ -251,7 +287,7 @@ def create_random_data():
     author =Author()
     pub = Publisher()
     book = Book()
-    col = Collection()
+    col = book_collection()
     profile.random_data()
     author.random_data()
     pub.random_data()
