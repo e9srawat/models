@@ -227,7 +227,8 @@ class Book(models.Model):
         kitab = Book.objects.filter(slug=slug, author=author, title=title, publisher=publisher, date_of_pub=date_of_pub)
         if kitab.exists():
             return "Object already exists"
-        Book.objects.create(slug=slug, author=author, title=title, publisher=publisher, date_of_pub=date_of_pub)
+        obj = Book(slug=slug, author=author, title=title, publisher=publisher, date_of_pub=date_of_pub)
+        obj.save()
         return "Object Created"
 
 
@@ -254,7 +255,7 @@ class Book(models.Model):
         return self.title
 
 
-class book_collection(models.Model):
+class Collection(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     books = models.ManyToManyField(Book)
@@ -262,32 +263,30 @@ class book_collection(models.Model):
     class Meta:
         verbose_name = 'Collection'
         verbose_name_plural = 'Collections'
-
+        db_table = 'book_collection'
+        
     def random_data(self):
-        collections = []
         bk = list(Book.objects.all())
         for i in range(10):
             print('Collection',i)
             slug = 'C' + str(i)
             name = 'Collection'+str(i)
-            collection = book_collection(slug = slug, name = name)
+            collection = Collection(slug = slug, name = name)
             collection.save()
             for j in range(random.choice(range(1,10))):
                 books = random.choice(bk) 
-                collection.books.set(books)
-            collections.append(collection)
-        book_collection.objects.bulk_create(collections)
+                collection.books.add(books)
         print('Done')
 
     def __str__(self):
-        return self.books
+        return self.name
     
 def create_random_data():
     profile = Profile()
     author =Author()
     pub = Publisher()
     book = Book()
-    col = book_collection()
+    col = Collection()
     profile.random_data()
     author.random_data()
     pub.random_data()
