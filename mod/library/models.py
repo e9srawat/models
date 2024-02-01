@@ -1,6 +1,7 @@
 from django.db import models
 import random
 import datetime
+from django.db.models import Q
 # Create your models here.
 class Profile(models.Model):
     slug = models.SlugField(unique=True)
@@ -38,15 +39,7 @@ class Profile(models.Model):
             print(i)
         Profile.objects.bulk_create(profiles)
         
-    def find_author_input(self):
-        a_name = (input("Author name: ")).lower
-        author = Author.objects.get(name=a_name)
-        profile_details = {'username':author.profile.username,
-                           'email':author.profile.email,
-                           'phone':author.profile.phone,
-                           'address':author.profile.address
-                           }
-        return profile_details
+    
             
     def __str__(self):
         return self.username
@@ -56,14 +49,27 @@ class Author(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=100)
     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='a_profile')
+
+
+    def num_books(self):
+        authors = Author.objects.all()
+        return {i:i.book_author.all().count() for i in authors}
+
+
+    def find_author_input(self):
+        a_name = (input("Author name: ")).lower()
+        author = Author.objects.get(name=a_name)
+        profile_details = {'profile_details':{'username':author.profile.username,
+                           'email':author.profile.email,
+                           'phone':author.profile.phone,
+                           'address':author.profile.address}
+                           }
+        return profile_details
     
-    def get_author_2books(self):
+    def get_author_2_books(self):
         authors = Author.objects.all()
         lst = [i for i in authors if len(i.book_author.all()) > 2]
-        # for i in authors:
-        #     if len(i.book_author.all()) > 2:
-        #         lst.append(i)
-        return(lst)
+        return lst
     
     def get_name(self):
         authors = Author.objects.all()
@@ -117,7 +123,19 @@ class Book(models.Model):
     title = models.CharField(max_length=255)
     publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name='book_publisher')
     date_of_pub = models.DateField()
+    is_deleted = models.BooleanField(default = False)
     
+    #Return the list of books published by given publishers (input will be list of publisher names).
+    def get_book_by_publishers(self, pubs):
+        lst = []
+        for i in pubs:
+            pub = Publisher.objects.get(name=i)
+            books = pub.book_publisher.all()
+            for j in books:
+                lst.append(j)
+        return lst
+
+
     def get_starts_a_book(self):
         authors = Author.objects.filter(name__startswith='a')
         lst = []
@@ -136,24 +154,51 @@ class Book(models.Model):
                 lst.append(j.title)
         return lst
     
+    def get_book_by_authorA_B(self, authorA, authorB):
+        query = Q(author=authorA)|Q(author=authorB)
+        books = Book.objects.filter(query)
+        return list(books)
+    
+    def get_book_exclude(self, a):
+        query = ~Q(author=a)
+        books = Book.objects.filter(query)
+        return list(books)
+    
+    def delete_book(self, book_title):
+        book = Book.objects.filter(title = book_title)
+        if book.exists():
+            book.delete()
+            return "Book deleted"
+        return "Book does not exist"
+    
+    def soft_delete_book(self, book_title):
+        book = Book.objects.filter(title = book_title, is_deleted=False)
+        if book.exists():
+            book[0].is_deleted = True
+            book[0].save()
+            return "Book soft deleted"
+        return "Book already soft deleted"
+    
     def get_book_by_author(self, author_name):
         author = Author.objects.get(name=author_name)
         books = author.book_author.all()
-        lst = [i.title for i in books]
-        return lst
+        return [i.title for i in books]
     
     def get_book_by_publisher(self, pub_name):
         pub = Publisher.objects.get(name=pub_name)
         books = pub.book_publisher.all()
-        lst = [i.title for i in books]
-        return lst
+        return [i.title for i in books]
     
     def get_book_by_author_pub(self, author_name, pub_name):
         aut = Author.objects.get(name=author_name)
         pub = Publisher.objects.get(name=pub_name)
         books = Book.objects.filter(publisher=pub,author = aut)
-        lst = [i for i in books]
-        return lst
+        return [i for i in books]
+    
+    def get_book_by_website(self, web):
+        pub = Publisher.objects.get(website=web)
+        books = pub.book_publisher.all()
+        return [i.title for i in books]
             
     def random_data(self):
         books = []
