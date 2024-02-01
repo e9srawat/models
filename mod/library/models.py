@@ -8,6 +8,22 @@ class Profile(models.Model):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15)
     address = models.TextField()
+        
+    def get_author_name_profile(self):
+        profiles = Profile.objects.all()
+        result = []
+        for i in profiles:
+            result.append({
+                'name': i.a_profile.name,
+                'profile_detail': {
+                    'slug': i.slug,
+                    'username': i.username,
+                    'email': i.email,
+                    'phone': i.phone,
+                    'address': i.address,
+                }
+            })
+        return result
 
     def random_data(self):
         profiles = []
@@ -21,6 +37,16 @@ class Profile(models.Model):
             profiles.append(profile)
             print(i)
         Profile.objects.bulk_create(profiles)
+        
+    def find_author_input(self):
+        a_name = (input("Author name: ")).lower
+        author = Author.objects.get(name=a_name)
+        profile_details = {'username':author.profile.username,
+                           'email':author.profile.email,
+                           'phone':author.profile.phone,
+                           'address':author.profile.address
+                           }
+        return profile_details
             
     def __str__(self):
         return self.username
@@ -29,12 +55,19 @@ class Profile(models.Model):
 class Author(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=100)
-    profile = models.OneToOneField(Profile, on_delete=models.CASCADE)
-
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='a_profile')
+    
+    def get_author_2books(self):
+        authors = Author.objects.all()
+        lst = [i for i in authors if len(i.book_author.all()) > 2]
+        # for i in authors:
+        #     if len(i.book_author.all()) > 2:
+        #         lst.append(i)
+        return(lst)
+    
     def get_name(self):
         authors = Author.objects.all()
         return [i.name for i in authors]
-    
     
     def random_data(self):
         authors = []
@@ -80,11 +113,48 @@ class Publisher(models.Model):
 
 class Book(models.Model):
     slug = models.SlugField(unique=True)
-    author = models.ForeignKey(Author, on_delete=models.CASCADE)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name='book_author')
     title = models.CharField(max_length=255)
-    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE)
+    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name='book_publisher')
     date_of_pub = models.DateField()
-
+    
+    def get_starts_a_book(self):
+        authors = Author.objects.filter(name__startswith='a')
+        lst = []
+        for i in authors:
+            books = i.book_author.all()
+            for j in books:
+                lst.append(j.title)
+        return lst
+    
+    def get_ends_a_book(self):
+        authors = Author.objects.filter(name__endswith='1')
+        lst = []
+        for i in authors:
+            books = i.book_author.all()
+            for j in books:
+                lst.append(j.title)
+        return lst
+    
+    def get_book_by_author(self, author_name):
+        author = Author.objects.get(name=author_name)
+        books = author.book_author.all()
+        lst = [i.title for i in books]
+        return lst
+    
+    def get_book_by_publisher(self, pub_name):
+        pub = Publisher.objects.get(name=pub_name)
+        books = pub.book_publisher.all()
+        lst = [i.title for i in books]
+        return lst
+    
+    def get_book_by_author_pub(self, author_name, pub_name):
+        aut = Author.objects.get(name=author_name)
+        pub = Publisher.objects.get(name=pub_name)
+        books = Book.objects.filter(publisher=pub,author = aut)
+        lst = [i for i in books]
+        return lst
+            
     def random_data(self):
         books = []
         authors = list(Author.objects.all())
